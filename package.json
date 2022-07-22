@@ -1,0 +1,22 @@
+{
+  "name": "design-tokens",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsx parser.ts",
+    "test": "tap --reporter nyan --ts"
+  },
+  "keywords": [],
+  "author": "hawyar",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/tap": "^15.0.7",
+    "tap": "^16.3.0",
+    "ts-node": "^10.9.1",
+    "tsx": "^3.8.0"
+  },
+  "tap": {
+    "check-coverage": false
+  }
+}
