@@ -1,22 +1,17 @@
 {
   "name": "design-tokens",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
   "scripts": {
     "dev": "tsx parser.ts",
-    "test": "tap --reporter nyan --ts"
+    "test": "rm -rf ./dist && npm run build && tap ./test.js --no-coverage --reporter specy",
+    "build": "esbuild parser.ts --outdir=dist --format=cjs --minify --platform=node --target=es2016"
   },
   "keywords": [],
   "author": "hawyar",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@types/tap": "^15.0.7",
-    "tap": "^16.3.0",
-    "ts-node": "^10.9.1",
-    "tsx": "^3.8.0"
-  },
-  "tap": {
-    "check-coverage": false
+    "esbuild": "^0.14.49",
+    "tap": "^16.3.0"
   }
 }

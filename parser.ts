@@ -1,119 +1,119 @@
-const openTypeFontWeights = {
-  "thin": 10,
-  "hairline": 10
+import fs from 'fs'
+
+
+// todo: fix this mess
+type TColor = '#string'
+type TDimension = `${string}px` | `${string}rem`
+type TFontFamily = string | []
+type TFontWeight = string
+type TDuration = `${string}ms`
+type TCubicBezier = number[]
+type TTokenType = TColor | TDimension | TFontFamily | TFontWeight | TDuration | TCubicBezier
+
+interface TToken {
+  value: string | {}| [] | number
+  type: TTokenType
+  path: string
+  name: string
+  description?: string
+  extensions?: {}
+  css: string | {} | null
 }
 
-type Color = `#string`
-type Dimension = `${string}px` | `${string}rem`
-type FontFamily = string
-type FontWeight = string
-type Duration = `${string}ms`
-type CubicBezier = number[]
+class Token {
+  token: TToken
+  constructor (t: TToken) {
+    this.token = t
+  }
 
-type Token = {
-    name: string
-    value?: string | {}|  [] | number
-    type: Color | Dimension | FontFamily | FontWeight |  Duration | CubicBezier
-    description?: string
-    path: string
-    extensions: {}
-}
+  toString (): string {
+    return JSON.stringify(this.token, null, 2)
+  }
 
-function parser(input: string | {}): any {
-    let tokens: Token[] = []
+  getToken (): TToken {
+    return this.token
+  }
 
-    if (typeof input === "string") input = JSON.parse(input)
-    
-    if (input === null || input === undefined) throw new Error("input is empty")
+  getType (): TTokenType {
+    return this.token.type
+  }
 
-    for (const [k, v] of Object.entries(input)) {
-        if (k.startsWith("$")) throw new Error(`token name must not begin with the "$". Found ${k}`)
-        if (k.indexOf("{") !== -1 || k.indexOf("}") !== -1 || k.indexOf(".") !== -1) throw new Error(`token name must not include {, }, . Error at: ${k}`)
-        let t: Token
-        if (typeof v === "object" && v !== null) {
-          if (!v.hasOwnProperty("$value")) throw new Error("token must include value property")
-
-          t = {
-            name: k,
-            value: v["$value"],
-            path: k,
-            type: "32px"
-          }
-
-          if (v.hasOwnProperty("$description")){
-            t.description = v["$description"]
-          }
-          tokens.push(t)
-
-        }
-      }
-      console.log(JSON.stringify(tokens, null, 2))
-}
-
-const examples = {
-  minimal: {
-    'token name': {
-      $value: 'token value'
-    }
-  },
-  with_metdata: {
-    'border-color': {
-      $value: 'token value',
-      $metadata: "moremetahere"
-    }
-  },
-  invalid_token_char: {
-    'bo{rder-color': {
-      $value: 'token value',
-      $metadata: "moremetahere"
-    }
-  },
-  composite_shadow: {
-    'shadow-token': {
-      $type: 'shadow',
-      $value: {
-        color: '#00000088',
-        offsetX: '0.5rem',
-        offsetY: '0.5rem',
-        blur: '1.5rem',
-        spread: '0rem'
-      }
-    },
-    'anothersuper-token': {
-      $type: 'shadow',
-      $value: {
-        color: '#00000088',
-        offsetX: '0.5rem',
-        offsetY: '0.5rem',
-        blur: '1.5rem',
-        spread: '0rem'
-      }
-    }
-  },
-  bad_token_start: {
-    $bad_example: {
-      $type: 'color',
-      $value: [0, 0, 0, 0]
-    }
-  },
-  groups: {
-    'token uno': {
-      $value: 'token value 1'
-    },
-    'token group': {
-      'token dos': {
-        $value: 'token value 2'
-      },
-      'nested token group': {
-        'token tres': {
-          $value: 'token value 3'
-        },
-        'Token cuatro': {
-          $value: 'token value 4'
-        }
-      }
+  toCSS (): void {
+    switch (this.token.type) {
+      case 'color':
+        const val = typeof this.token.value === 'string' ? this.token.value : this.token.value["$value"]
+        this.token.css = `"${this.token.name.trim()}": ${val};`
+        break
+      case 'fontFamily':
+        const t = this.token.value as TFontFamily
+        this.token.css = Array.isArray(t) ? t.map(x => `"${x}"`).join(', ') : `"${t}";`
+        break
+      case 'shadow':
+        this.token.css = `box-shadow: "${this.token.value}";`
+        break
+      default:
+        throw new Error(`Unsupported token type: ${this.token.type}`)
     }
   }
 }
 
-parser(examples["minimal"])
+interface ParserOptions {
+  source: string | {}
+  destination: string
+  format: 'css'
+}
+
+class Parser {
+  opt: ParserOptions
+  tokens: TToken[]
+
+  constructor (opt: ParserOptions) {
+    this.opt = opt
+    this.tokens = []
+  }
+
+  readTokens (): TToken[] {
+    for (const [k, v] of Object.entries(this.opt.source)) {
+      if (v.$value !== undefined) {
+        const token = new Token({
+          name: k,
+          type: v["$type"] ?? typeof v["$value"],
+          value: v,
+          description: v["$description"] ?? '',
+          path: k,
+          css: ''
+        })
+        if (this.opt.format === 'css') {
+          token.toCSS()
+        }
+        this.tokens.push(token.getToken())
+        continue
+      }
+      console.log('has nested tokens')
+    }
+    return this.tokens
+  }
+}
+
+export function parse (opt: ParserOptions): { tokens: TToken[] } {
+  if (opt === undefined) {
+    throw new Error('Parser options are required')
+  }
+
+  if (opt.format !== 'css') {
+    throw new Error('Unsupported format')
+  }
+
+  if (typeof opt.source === 'string' && (opt.source.startsWith('./') || opt.source.startsWith('/'))) {
+    opt.source = fs.readFileSync(opt.source, 'utf8')
+  }
+
+  if (typeof opt.source === 'string') {
+    opt.source = JSON.parse(opt.source)
+  }
+
+  const parser = new Parser(opt)
+  const tokens = parser.readTokens()
+
+  return { tokens }
+}
