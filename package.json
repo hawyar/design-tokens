@@ -1,17 +1,22 @@
 {
   "name": "design-tokens",
   "version": "1.0.0",
+  "main": "./dist/parser.js",
   "scripts": {
-    "dev": "tsx parser.ts",
     "test": "rm -rf ./dist && npm run build && tap ./test.js --no-coverage --reporter specy",
-    "build": "esbuild parser.ts --outdir=dist --format=cjs --platform=node --target=es2016"
+    "build": "esbuild parser.ts --outdir=dist --minify --format=cjs --platform=node --target=es2016"
   },
   "keywords": [],
   "author": "hawyar",
   "license": "MIT",
   "devDependencies": {
     "@types/tap": "^15.0.7",
+    "@types/tinycolor2": "^1.4.3",
     "esbuild": "^0.14.49",
+    "standard": "^17.0.0",
     "tap": "^16.3.0"
+  },
+  "dependencies": {
+    "tinycolor2": "^1.4.2"
   }
 }
