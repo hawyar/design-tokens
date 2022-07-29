@@ -1,7 +1,5 @@
-import fs from 'fs'
+import { readFile } from 'fs/promises'
 
-
-// todo: fix this mess
 type TColor = '#string'
 type TDimension = `${string}px` | `${string}rem`
 type TFontFamily = string | []
@@ -10,14 +8,16 @@ type TDuration = `${string}ms`
 type TCubicBezier = number[]
 type TTokenType = TColor | TDimension | TFontFamily | TFontWeight | TDuration | TCubicBezier
 
+
 interface TToken {
+  name: string
   value: string | {}| [] | number
   type: TTokenType
   path: string
-  name: string
   description?: string
   extensions?: {}
-  css: string | {} | null
+  css?: string
+
 }
 
 class Token {
@@ -58,62 +58,66 @@ class Token {
 }
 
 interface ParserOptions {
-  source: string | {}
   destination: string
   format: 'css'
 }
 
 class Parser {
   opt: ParserOptions
+  source: string | {}
   tokens: TToken[]
 
-  constructor (opt: ParserOptions) {
+  constructor (source: {},opt: ParserOptions) {
+    this.source = source
     this.opt = opt
-    this.tokens = []
+    this.tokens = this.readTokens(this.source)
   }
 
-  readTokens (): TToken[] {
-    for (const [k, v] of Object.entries(this.opt.source)) {
-      if (v.$value !== undefined) {
-        const token = new Token({
-          name: k,
-          type: v["$type"] ?? typeof v["$value"],
-          value: v,
-          description: v["$description"] ?? '',
-          path: k,
-          css: ''
-        })
-        if (this.opt.format === 'css') {
-          token.toCSS()
+  readTokens (source: {}): TToken[] {
+    if (this.tokens === undefined) {
+      this.tokens = []
+    }
+
+    for (const [k, v] of Object.entries(source)) {
+      if (v["$value"] !== undefined && v["$value"] !== null) {
+        const tt = new Token({ value: v["$value"], name: k })
+        if (v["$type"] !== undefined) {
+          tt.token.type = v["$type"] as TTokenType
         }
-        this.tokens.push(token.getToken())
-        continue
+
+        if (v["$description"] !== undefined) {
+          tt.token.description = v["$description"]
+        }
+
+        if (v["$extensions"] !== undefined) {
+          tt.token.extensions = v["$extensions"]
+        }
+
+        if (this.opt.format === 'css' && tt.getType() !== undefined) {
+          tt.toCSS()
+        }
+        this.tokens.push(tt.getToken())
+      } else {
+        this.readTokens(v)
       }
-      console.log('has nested tokens')
     }
     return this.tokens
   }
 }
 
-export function parse (opt: ParserOptions): { tokens: TToken[] } {
-  if (opt === undefined) {
-    throw new Error('Parser options are required')
+export async function parse (source: {}, opt: ParserOptions): Promise<{ tokens: TToken[] }> {
+  if (source === undefined) {
+    throw new Error("source is undefined")
   }
 
   if (opt.format !== 'css') {
-    throw new Error('Unsupported format')
+    throw new Error('unsupported format')
   }
 
-  if (typeof opt.source === 'string' && (opt.source.startsWith('./') || opt.source.startsWith('/'))) {
-    opt.source = fs.readFileSync(opt.source, 'utf8')
+  if (typeof source === 'string' && (source.startsWith('./') || source.startsWith('/'))) {
+    source = await readFile(source, { encoding: 'utf8' })
   }
 
-  if (typeof opt.source === 'string') {
-    opt.source = JSON.parse(opt.source)
-  }
-
-  const parser = new Parser(opt)
-  const tokens = parser.readTokens()
-
+  const { tokens } = new Parser(source, opt)
   return { tokens }
 }

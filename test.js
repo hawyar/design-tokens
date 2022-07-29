@@ -1,26 +1,46 @@
 const tap = require('tap')
 const { parse } = require('./dist/parser.js')
 
-tap.test('colors', t => {
-  const colors = {
-    "$description": "Brand colors",
-    'primary': {
-      $value: '#0D5FFF',
-      $type: 'color'
-    },
-    'secondary': {
-      $value: '#344054',
-      $type: 'color'
-    },
-    'white': {
-      $value: '#FFFFFF',
-      $type: 'color'
+tap.test('basic', async t => {
+  const basic = {
+    'btn-bg': {
+      $value: '#777777',
+      $description: 'The background color for buttons in their normal state.'
     }
   }
-  const result = parse({
-    source: colors,
+  const { tokens } = await parse(basic, {
     format: 'css'
   })
-  console.log(result)
+
+  t.same(tokens[0].name, "btn-bg")
+  t.end()
+})
+
+tap.test('nested', async t => {
+  const nested = {
+    "token uno": {
+      "$value": "token value 1"
+    },
+    "token group": {
+      "token dos": {
+        "$value": "token value 2",
+        "$type": 'color'
+      },
+      "nested token group": {
+        "token tres": {
+          "$value": "token value 3"
+        },
+        "Token cuatro": {
+          "$value": "token value 4",
+          "$description": "token description"
+        }
+      }
+    }
+  }
+  const { tokens } = await parse(nested,{
+    format: 'css'
+  })
+
+  t.same(tokens.length, 4)
   t.end()
 })

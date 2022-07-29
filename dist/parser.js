@@ -1,1 +1,127 @@
-"use strict";var k=Object.create;var r=Object.defineProperty;var u=Object.getOwnPropertyDescriptor;var T=Object.getOwnPropertyNames;var p=Object.getPrototypeOf,h=Object.prototype.hasOwnProperty;var y=(e,t)=>{for(var s in t)r(e,s,{get:t[s],enumerable:!0})},a=(e,t,s,o)=>{if(t&&typeof t=="object"||typeof t=="function")for(let n of T(t))!h.call(e,n)&&n!==s&&r(e,n,{get:()=>t[n],enumerable:!(o=u(t,n))||o.enumerable});return e};var l=(e,t,s)=>(s=e!=null?k(p(e)):{},a(t||!e||!e.__esModule?r(s,"default",{value:e,enumerable:!0}):s,e)),f=e=>a(r({},"__esModule",{value:!0}),e);var $={};y($,{parse:()=>d});module.exports=f($);var c=l(require("fs"));class g{constructor(t){this.token=t}toString(){return JSON.stringify(this.token,null,2)}getToken(){return this.token}getType(){return this.token.type}toCSS(){switch(this.token.type){case"color":const t=typeof this.token.value=="string"?this.token.value:this.token.value.$value;this.token.css=`"${this.token.name.trim()}": ${t};`;break;case"fontFamily":const s=this.token.value;this.token.css=Array.isArray(s)?s.map(o=>`"${o}"`).join(", "):`"${s}";`;break;case"shadow":this.token.css=`box-shadow: "${this.token.value}";`;break;default:throw new Error(`Unsupported token type: ${this.token.type}`)}}}class m{constructor(t){this.opt=t,this.tokens=[]}readTokens(){var t,s;for(const[o,n]of Object.entries(this.opt.source)){if(n.$value!==void 0){const i=new g({name:o,type:(t=n.$type)!=null?t:typeof n.$value,value:n,description:(s=n.$description)!=null?s:"",path:o,css:""});this.opt.format==="css"&&i.toCSS(),this.tokens.push(i.getToken());continue}console.log("has nested tokens")}return this.tokens}}function d(e){if(e===void 0)throw new Error("Parser options are required");if(e.format!=="css")throw new Error("Unsupported format");return typeof e.source=="string"&&(e.source.startsWith("./")||e.source.startsWith("/"))&&(e.source=c.default.readFileSync(e.source,"utf8")),typeof e.source=="string"&&(e.source=JSON.parse(e.source)),{tokens:new m(e).readTokens()}}0&&(module.exports={parse});
+"use strict";
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+var __async = (__this, __arguments, generator) => {
+  return new Promise((resolve, reject) => {
+    var fulfilled = (value) => {
+      try {
+        step(generator.next(value));
+      } catch (e) {
+        reject(e);
+      }
+    };
+    var rejected = (value) => {
+      try {
+        step(generator.throw(value));
+      } catch (e) {
+        reject(e);
+      }
+    };
+    var step = (x) => x.done ? resolve(x.value) : Promise.resolve(x.value).then(fulfilled, rejected);
+    step((generator = generator.apply(__this, __arguments)).next());
+  });
+};
+var parser_exports = {};
+__export(parser_exports, {
+  parse: () => parse
+});
+module.exports = __toCommonJS(parser_exports);
+var import_promises = require("fs/promises");
+class Token {
+  constructor(t) {
+    this.token = t;
+  }
+  toString() {
+    return JSON.stringify(this.token, null, 2);
+  }
+  getToken() {
+    return this.token;
+  }
+  getType() {
+    return this.token.type;
+  }
+  toCSS() {
+    switch (this.token.type) {
+      case "color":
+        const val = typeof this.token.value === "string" ? this.token.value : this.token.value["$value"];
+        this.token.css = `"${this.token.name.trim()}": ${val};`;
+        break;
+      case "fontFamily":
+        const t = this.token.value;
+        this.token.css = Array.isArray(t) ? t.map((x) => `"${x}"`).join(", ") : `"${t}";`;
+        break;
+      case "shadow":
+        this.token.css = `box-shadow: "${this.token.value}";`;
+        break;
+      default:
+        throw new Error(`Unsupported token type: ${this.token.type}`);
+    }
+  }
+}
+class Parser {
+  constructor(source, opt) {
+    this.source = source;
+    this.opt = opt;
+    this.tokens = this.readTokens(this.source);
+  }
+  readTokens(source) {
+    if (this.tokens === void 0) {
+      this.tokens = [];
+    }
+    for (const [k, v] of Object.entries(source)) {
+      if (v["$value"] !== void 0 && v["$value"] !== null) {
+        const tt = new Token({ value: v["$value"], name: k });
+        if (v["$type"] !== void 0) {
+          tt.token.type = v["$type"];
+        }
+        if (v["$description"] !== void 0) {
+          tt.token.description = v["$description"];
+        }
+        if (v["$extensions"] !== void 0) {
+          tt.token.extensions = v["$extensions"];
+        }
+        if (this.opt.format === "css" && tt.getType() !== void 0) {
+          tt.toCSS();
+        }
+        this.tokens.push(tt.getToken());
+      } else {
+        this.readTokens(v);
+      }
+    }
+    return this.tokens;
+  }
+}
+function parse(source, opt) {
+  return __async(this, null, function* () {
+    if (source === void 0) {
+      throw new Error("source is undefined");
+    }
+    if (opt.format !== "css") {
+      throw new Error("unsupported format");
+    }
+    if (typeof source === "string" && (source.startsWith("./") || source.startsWith("/"))) {
+      source = yield (0, import_promises.readFile)(source, { encoding: "utf8" });
+    }
+    const { tokens } = new Parser(source, opt);
+    return { tokens };
+  });
+}
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  parse
+});
