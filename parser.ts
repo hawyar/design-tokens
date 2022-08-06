@@ -9,10 +9,31 @@ type TDimension = `${string}px` | `${string}rem`
 type TFontFamily = string | string[]
 type TFontWeight = string
 type TDuration = `${string}ms`
-type TCubicBezier = Array<number>
+type TCubicBezier = number[]
 
 enum TOrderType {
   GRAMMAR = 'per grammar'
+}
+
+enum FontWeightNumericWithAlias {
+  HAIRLINE = 100,
+  THIN = 100,
+  EXTRA_LIGHT = 200,
+  ULTRA_LIGHT = 200,
+  LIGHT= 300,
+  NORMAL = 400,
+  REGULAR = 400,
+  BOOK = 400,
+  MEDIUM = 500,
+  SEMI_BOLD = 600,
+  DEMI_BOLD = 600,
+  BOLD = 700,
+  EXTRA_BOLD = 800,
+  ULTRA_BOLD = 800,
+  BLACK = 900,
+  HEAVY = 900,
+  EXTRA_BLACK = 950,
+  ULTRA_BLACK = 950
 }
 
 enum TSystemColors {
@@ -34,7 +55,7 @@ enum TSystemColors {
   MarkText = 'MarkText',
   GrayText = 'GrayText',
   AccentColor = 'AccentColor',
-  AccentColorTex = 'AccentColorText'
+  AccentColorText = 'AccentColorText'
 }
 
 interface TProperty {
@@ -47,8 +68,8 @@ interface TProperty {
 }
 
 enum TNamedColors {
-  aliceBlue = 'aliceblue',
-  antiqueWhite = 'antiquewhite',
+  ALICE_BLUE = 'aliceblue',
+  ANTIQUE_WHITE = 'antiquewhite',
   aqua = 'aqua',
   aquamarine = 'aquamarine',
   azure = 'azure',
@@ -151,13 +172,13 @@ enum TNamedColors {
   navy = 'navy',
   oldLace = 'oldlace',
   olive = 'olive',
-  oliveDrab = 'olivedrab', 
+  oliveDrab = 'olivedrab',
 }
 
 type TAbsoluteColorFunction = `rgb${string}` | `rgba${string}` | `hsl${string}` | `hsla${string}` | `hwb${string}` | `lab${string}` | `lch${string}` | `oklab${string}` | `oklch${string}` | `color${string}`
 type TAbsoluteColorBase = `#${string}` | TAbsoluteColorFunction | TNamedColors | TTransparent
 
-type TColorToken = TProperty & {
+interface TColorToken {
   name: 'color'
   initial: TSystemColors.CanvasText
   value: TAbsoluteColorBase | TCurrentColor | TSystemColors
@@ -169,17 +190,17 @@ interface TToken {
   name: string
   value: string | {} | [] | number
   type: TTokenType
-  path?: string
+  path: string
   description?: string
   extensions?: {}
-  css?: string
-  _props?: TProperty
 }
 
 class Token {
   token: TToken
+  props: TProperty | null
   constructor (t: TToken) {
     this.token = t
+    this.props = null
   }
 
   toString (): string {
@@ -190,81 +211,62 @@ class Token {
     return this.token
   }
 
-  getType (): TTokenType {
-    return this.token.type
-  }
 
-  toCSS (): void {
+  detectType (): void {
     switch (this.token.type) {
       case 'color':
-
-        if (typeof this.token.value === 'number') {
-          this.token.value = this.token.value.toString()
-        }
-
-        if (typeof this.token.value === 'undefined' && this.token._props !== undefined) {
-          this.token.value = this.token._props.initial
-        }
-
-        // todo: this might fail for object values for non css use
         const raw = tinycolor(this.token.value as string)
-        if (!raw.isValid()) throw new Error(`Invalid color ${this.token.value}`)
-        this.token.css = `"${this.token.name.trim()}": ${raw.toString()};`
-        break
-      case 'fontFamily':
-        const t = this.token.value as TFontFamily
-        this.token.css = Array.isArray(t) ? t.map(x => `"${x}"`).join(', ') : `"${t}";`
-        break
-      case 'shadow':
-        this.token.css = typeof this.token.value === 'string' ? `box-shadow: "${this.token.value}";` : `box-shadow: "${JSON.stringify(this.token.value, null, 2)}";`
+        if (!raw.isValid()) throw new Error(`Invalid color: ${this.token.value}`)
+        if (raw.getFormat() !== "hex") throw new Error("The value MUST be a string containing a hex triplet/quartet including the preceding # character")
+
+          const t: TAbsoluteColorBase = this.token.value as TAbsoluteColorBase
         break
       default:
-        break
-        // we could infer type instead but the spec advises against it
-        // todo: be more graceful
-        // throw new Error(`Unsupported token type: ${this.token.type}`)
+        throw new Error(`Unsupported token type: ${this.token.type}`)
     }
   }
 }
 
 interface ParserOptions {
-  destination: string
+  output: string
   format: 'css'
 }
 
 class Parser {
   opt: ParserOptions
   source: string | {}
-  tokens: Array<TToken>
+  tokens: TToken[]
+  _paths: string[]
 
   constructor (source: {}, opt: ParserOptions) {
     this.source = source
     this.opt = opt
     this.tokens = this.readTokens(this.source)
+    this._paths = []
   }
 
-  readTokens (source: { [key: string]: any }): Array<TToken> {
-    if (this.tokens === undefined) {
-      this.tokens = []
-    }
+  readTokens (source: { [key: string]: any }): TToken[] {
+    if (typeof this._paths === 'undefined') this._paths = []
+
+    if (this.tokens === undefined) this.tokens = []
 
     for (const [k, v] of Object.entries(source)) {
-      if (v.$value !== undefined && v.$value !== null) {
-        const tt = new Token({ value: v.$value, name: k, type: v.$type ?? typeof v.$value })
+      if (v.hasOwnProperty('$value') && v.hasOwnProperty('$type')) {
+        this._paths.push(k)
+        const tt = new Token({ value: v.$value, name: k, type: v.$type ?? typeof v.$value, path: this._paths.join('/') })
 
-        if (v.$description !== undefined) {
+        if (v.hasOwnProperty('$description')) {
           tt.token.description = v.$description
         }
 
-        if (v.$extensions !== undefined) {
+        if (v.hasOwnProperty('$extensions')) {
           tt.token.extensions = v.$extensions
         }
-
-        if (this.opt.format === 'css' && tt.getType() !== undefined) {
-          tt.toCSS()
-        }
+        tt.detectType()
+        console.log(tt)
         this.tokens.push(tt.getToken())
       } else {
+        // this._paths.push(k)
         this.readTokens(v)
       }
     }
@@ -272,16 +274,16 @@ class Parser {
   }
 }
 
-export async function parse (source: {}, opt: ParserOptions): Promise<{ tokens: Array<TToken> }> {
+export async function parse (source: {} | string, opt: ParserOptions): Promise<{ tokens: TToken[] }> {
   if (source === undefined) {
     throw new Error('source is undefined')
   }
 
-  if (opt.format !== 'css') {
+  if (opt !== undefined && opt.format !== 'css') {
     throw new Error('unsupported format')
   }
 
-  if (typeof source === 'string' && (source.startsWith('./') || source.startsWith('/'))) {
+  if (typeof source === 'string' && (source.endsWith('.tokens') || source.endsWith('.tokens.json'))) {
     source = await readFile(source, { encoding: 'utf8' })
   }
 

@@ -4,7 +4,7 @@
   "main": "./dist/parser.js",
   "scripts": {
     "test": "rm -rf ./dist && npm run build && tap ./test.js --no-coverage --reporter specy",
-    "build": "esbuild parser.ts --outdir=dist --minify --format=cjs --platform=node --target=es2016"
+    "build": "esbuild parser.ts --outdir=dist --format=cjs --platform=node --target=es2016"
   },
   "keywords": [],
   "author": "hawyar",

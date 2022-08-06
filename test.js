@@ -2,107 +2,45 @@ const tap = require('tap')
 const { parse } = require('./dist/parser.js')
 
 tap.test('color', async t => {
-  t.test('basic', async t => {
-    const color = {
-      primary: {
-        $type: 'color',
-        $value: 'blue'
-      }
+  const color = {
+    "Majestic magenta": {
+      "$value": "ff00ff",
+      "$type": "color"
     }
+  }
 
-    const { tokens } = await parse(color, {
-      format: 'css'
-    })
-    t.same(tokens.length, 1)
+  const { tokens } = await parse(color, {
+    format: 'css'
   })
-
-  t.test('nested', async t => {
-    const brand = {
-      web: {
-        primary: {
-          $type: 'color',
-          $value: 'blue'
-        }
-      },
-      print: {
-        secondary: {
-          $type: 'color',
-          $value: 'red'
-        }
-      }
-    }
-
-    const { tokens } = await parse(brand, {
-      format: 'css'
-    })
-    t.same(tokens.length, 2)
-  })
-
+  t.same(tokens.length, 1)
   t.end()
 })
 
-// tap.test('basic', async t => {
-//   const basic = {
-//     'btn-bg': {
-//       $value: '#777777',
-//       $description: 'The background color for buttons in their normal state.'
-//     }
-//   }
-//   const { tokens } = await parse(basic, {
-//     format: 'css'
-//   })
-
-//   t.same(tokens[0].name, 'btn-bg')
-//   t.end()
-// })
-
-// tap.test('nested', async t => {
-//   const nested = {
-//     'token uno': {
-//       $value: 'token value 1'
-//     },
-//     'token group': {
-//       'token dos': {
-//         $value: 'token value 2',
-//         $type: 'color'
-//       },
-//       'nested token group': {
-//         'token tres': {
-//           $value: 'token value 3'
+// tap.test('brand', async t => {
+//   const brand = {
+//     colors: {
+//       primary: {
+//         blue: {
+//           $value: '#0D5FFF',
+//           $type: 'color',
+//           $description: 'Primary blue color'
 //         },
-//         'Token cuatro': {
-//           $value: 'token value 4',
-//           $description: 'token description'
+//         black: {
+//           $value: '#000000',
+//           $type: 'color',
+//           $description: 'Primary white color'
+//         },
+//         white: {
+//           $value: '#FFFFFF',
+//           $type: 'color',
+//           $description: 'Primary white color'
 //         }
 //       }
 //     }
 //   }
-//   const { tokens } = await parse(nested, {
+//   const { tokens } = await parse(brand, {
 //     format: 'css'
 //   })
-
-//   t.same(tokens.length, 4)
-//   t.end()
-// })
-
-// tap.test('composite tokens', async t => {
-//   const composite = {
-//     'shadow-token': {
-//       $type: 'shadow',
-//       $value: {
-//         color: '#00000088',
-//         offsetX: '0.5rem',
-//         offsetY: '0.5rem',
-//         blur: '1.5rem',
-//         spread: '0rem'
-//       }
-//     }
-//   }
-
-//   const { tokens } = await parse(composite, {
-//     format: 'css'
-//   })
-//   console.log(tokens)
-//   t.same(tokens.length, 1)
+//   t.same(tokens.length, 3)
 //   t.end()
 // })
