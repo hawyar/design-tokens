@@ -3,14 +3,14 @@ const { parse } = require('./dist/parser.js')
 
 tap.test('color', async t => {
   const color = {
-    "Majestic magenta": {
-      "$value": "ff00ff",
-      "$type": "color"
+    'Majestic magenta': {
+      $value: '#ff00ff',
+      $type: 'color'
     }
   }
 
   const { tokens } = await parse(color, {
-    format: 'css'
+    colorFormat: 'rgba'
   })
   t.same(tokens.length, 1)
   t.end()
