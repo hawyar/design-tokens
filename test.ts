@@ -1,6 +1,5 @@
-const tap = require('tap')
-const { parse } = require('./dist/parser.js')
-
+import tap from 'tap'
+import { parse } from './parser'
 
 tap.test('token types', async (t) => {
   t.test('color', async t => {
@@ -77,7 +76,6 @@ tap.test('token types', async (t) => {
     }
 
     const { tokens } = await parse(duration)
-    console.log(tokens[0].computedValue)
     t.end()
   })
 
@@ -94,10 +92,6 @@ tap.test('token types', async (t) => {
     }
 
     const { tokens } = await parse(cubicBezier)
-    console.log(tokens[0].computedValue)
     t.end()
   })
-
-
-
 })

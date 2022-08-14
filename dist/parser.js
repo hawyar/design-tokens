@@ -1,10 +1,27 @@
 "use strict";
 var __create = Object.create;
 var __defProp = Object.defineProperty;
+var __defProps = Object.defineProperties;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropDescs = Object.getOwnPropertyDescriptors;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getOwnPropSymbols = Object.getOwnPropertySymbols;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __propIsEnum = Object.prototype.propertyIsEnumerable;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __spreadValues = (a, b) => {
+  for (var prop in b || (b = {}))
+    if (__hasOwnProp.call(b, prop))
+      __defNormalProp(a, prop, b[prop]);
+  if (__getOwnPropSymbols)
+    for (var prop of __getOwnPropSymbols(b)) {
+      if (__propIsEnum.call(b, prop))
+        __defNormalProp(a, prop, b[prop]);
+    }
+  return a;
+};
+var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
@@ -46,6 +63,7 @@ __export(parser_exports, {
 module.exports = __toCommonJS(parser_exports);
 var import_promises = require("fs/promises");
 var import_tinycolor2 = __toESM(require("tinycolor2"));
+var import_no_case = require("no-case");
 const fontWeights = {
   THIN: 100,
   HAIR: 100,
@@ -68,13 +86,19 @@ const fontWeights = {
 };
 class Token {
   constructor(t) {
-    this.token = t;
+    this.token = __spreadProps(__spreadValues({}, t), {
+      type: t.type || null
+    });
+    this.normalizeName();
   }
-  toString() {
-    return JSON.stringify(this.token, null, 2);
+  prettyPrint() {
+    console.log(JSON.stringify(this.token, null, 2));
   }
   getToken() {
     return this.token;
+  }
+  normalizeName() {
+    this.token.normalizedName = (0, import_no_case.noCase)(this.token.name, { delimiter: "-" });
   }
 }
 class Parser {
@@ -101,8 +125,10 @@ class Parser {
           tt.token.extensions = v.$extensions;
         }
         this.computeValue(tt.getToken());
+        tt.prettyPrint();
         this.tokens.push(tt.getToken());
       } else {
+        this._paths.push(k);
         this.readTokens(v);
       }
     }
@@ -113,9 +139,9 @@ class Parser {
       case "color":
         const raw = (0, import_tinycolor2.default)(t.value);
         if (!raw.isValid())
-          throw new Error(`Invalid color: ${t.value}`);
+          throw new Error(`TColor: Invalid color: ${t.value}`);
         if (raw.getFormat() !== "hex")
-          throw new Error("The value MUST be a string containing a hex triplet/quartet including the preceding # character");
+          throw new Error("TColor: The value MUST be a string containing a hex triplet/quartet including the preceding # character");
         if (this.opt.colorFormat === "rgb") {
           t.computedValue = raw.toRgbString();
           return;
@@ -159,6 +185,10 @@ class Parser {
       case "cubicBezier":
         if (!Array.isArray(t.value))
           throw new Error("The value must be an array of 4 numbers");
+        for (const v of t.value) {
+          if (typeof v !== "number")
+            throw new Error("The value must be an array of 4 numbers");
+        }
         const [P1x, P1y, P2x, P2y] = t.value;
         if (P1x < 0 || P1x > 1)
           throw new Error("x coordinate of P1 must be between 0 and 1");

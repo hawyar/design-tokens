@@ -1,6 +1,6 @@
 import { readFile } from 'fs/promises'
 import tinycolor from 'tinycolor2'
-
+import { noCase } from 'no-case'
 
 // enum FontWeight {
 //   THIN, HAIR = 100,
@@ -39,25 +39,35 @@ const fontWeights = {
 interface TToken {
   name: string
   value: string | {} | [] | number
-  type: 'color' | 'dimension' | 'fontFamily' | 'fontWeight' | "duration" | "cubicBezier"
+  // todo: cleanup this part
+  type: String | Number | Boolean | Object | Array<any> | null | "color" | "dimension" | "fontFamily" | "fontWeight" | "duration" | "cubicBezier",
   path: string
   description?: string
   extensions?: {}
   computedValue?: string | {} | [] | number
+  normalizedName?: string
 }
 
 class Token {
   token: TToken
   constructor (t: TToken) {
-    this.token = t
+    this.token = {
+        ...t,
+        type: t.type || null,
+    }
+    this.normalizeName()
   }
 
-  toString (): string {
-    return JSON.stringify(this.token, null, 2)
+  prettyPrint (): void {
+     console.log(JSON.stringify(this.token, null, 2))
   }
 
   getToken (): TToken {
     return this.token
+  }
+
+  normalizeName(): void {
+    this.token.normalizedName = noCase(this.token.name, { delimiter: "-"})
   }
 }
 
@@ -97,9 +107,11 @@ class Parser {
         }
 
         this.computeValue(tt.getToken())
+
+        tt.prettyPrint()
         this.tokens.push(tt.getToken())
       } else {
-        // this._paths.push(k)
+        this._paths.push(k)
         this.readTokens(v)
       }
     }
@@ -110,8 +122,8 @@ class Parser {
     switch (t.type) {
       case 'color':
         const raw = tinycolor(t.value as string)
-        if (!raw.isValid()) throw new Error(`Invalid color: ${t.value}`)
-        if (raw.getFormat() !== 'hex') throw new Error('The value MUST be a string containing a hex triplet/quartet including the preceding # character')
+        if (!raw.isValid()) throw new Error(`TColor: Invalid color: ${t.value}`)
+        if (raw.getFormat() !== 'hex') throw new Error('TColor: The value MUST be a string containing a hex triplet/quartet including the preceding # character')
 
         if (this.opt.colorFormat === 'rgb') {
           t.computedValue = raw.toRgbString()
