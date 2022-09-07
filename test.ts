@@ -1,20 +1,51 @@
 import tap from 'tap'
-import { parse } from './parser'
+import { parse, OutputFormat } from './lib/parser'
 
 tap.test('token types', async (t) => {
-  t.test('color', async t => {
-    const color = {
+
+  t.test('transparent', async t => {
+    const transparent = {
       'Majestic magenta': {
-        $value: '#ff00ff',
+        $value: 'transparent',
         $type: 'color'
       }
     }
 
-    const { tokens } = await parse(color, {
-      colorFormat: 'rgba'
-    })
+    const {tokens, css} = await parse(transparent)
     t.same(tokens.length, 1)
-    t.end()
+    t.same(css, ':root { --majestic-magenta: rgb(0, 0, 0, 0); }')
+  })
+  t.test('color', async t => {
+    const basic = {
+      "brand": {
+        "color": {
+          'blue': {
+            "900": {
+              $value: '#0D5FFF',
+              $type: 'color',
+            },
+            "300": {
+              $value: '#C1D3F8',
+              $type: 'color',
+            },
+          },
+          'black': {
+            $value: '#000000',
+            $type: 'color',
+          },
+          'white': {
+            $value: '#FFFFFF',
+            $type: 'color',
+          },
+        }
+      }
+    }
+
+    const {tokens, css} = await parse(basic, {
+      colorFormat: 'hex',
+      outputFormat: OutputFormat.CSS
+    })
+    t.same(tokens.length, 4)
   })
 
   t.test('dimension', async t => {
@@ -59,28 +90,27 @@ tap.test('token types', async (t) => {
     }
 
     const { tokens } = await parse(weights)
-    t.end()
-    // t.same(tokens[0].computedValue, )
+    t.same(tokens[0].computedValue, 350)
   })
 
-  t.test("duration", async t => {
-    const duration = {
-      "Duration-100": {
-        "$value": "100ms",
-        "$type": "duration"
-      },
-      "Duration-200": {
-        "$value": "200ms",
-        "$type": "duration"
-      }
-    }
-
-    const { tokens } = await parse(duration)
-    t.end()
-  })
-
+  // t.test("duration", async t => {
+  //   const duration = {
+  //     "Duration-100": {
+  //       "$value": "100ms",
+  //       "$type": "duration"
+  //     },
+  //     "Duration-200": {
+  //       "$value": "200ms",
+  //       "$type": "duration"
+  //     }
+  //   }
+  //
+  //   const { tokens } = await parse(duration)
+  //   t.end()
+  // })
+  //
   t.test("cubicBezier", async t => {
-    const cubicBezier =  {
+    const cubicBezier = {
       "Accelerate": {
         "$value": [0.5, 0, 1, 1],
         "$type": "cubicBezier"
@@ -90,8 +120,8 @@ tap.test('token types', async (t) => {
         "$type": "cubicBezier"
       }
     }
-
-    const { tokens } = await parse(cubicBezier)
-    t.end()
+    const {tokens} = await parse(cubicBezier)
+    console.log(tokens)
   })
+  t.end()
 })

@@ -2,50 +2,92 @@ import { readFile } from 'fs/promises'
 import tinycolor from 'tinycolor2'
 import { noCase } from 'no-case'
 
-// enum FontWeight {
-//   THIN, HAIR = 100,
-//   EXTRA_LIGHT, ULTRA_LIGHT = 200,
-//   LIGHT = 300,
-//   NORMAL, REGULAR, BOOK = 400,
-//   MEDIUM = 500,
-//   SEMI_BOLD, DEMI_BOLD = 600,
-//   BOLD = 700,
-//   EXTRA_BOLD , ULTRA_BOLD = 800,
-//   BLACK, HEAVY = 900,
-//   EXTRA_BLACK, ULTRA_BLACK = 950,
+export enum OutputFormat {
+    CSS,
+    SCSS,
+}
+
+interface Options {
+  colorFormat: 'rgb' | 'rgba' | 'hex' | 'hsl'
+  outputFormat: OutputFormat
+}
+
+// const fontWeights = {
+//     THIN: 100,
+//     HAIR: 100,
+//     EXTRA_LIGHT: 200,
+//     ULTRA_LIGHT: 200,
+//     LIGHT: 300,
+//     NORMAL: 400,
+//     REGULAR: 400,
+//     BOOK: 400,
+//     MEDIUM: 500,
+//     SEMI_BOLD: 600,
+//     DEMI_BOLD: 600,
+//     BOLD: 700,
+//     EXTRA_BOLD: 800,
+//     ULTRA_BOLD: 800,
+//     BLACK: 900,
+//     HEAVY: 900,
+//     EXTRA_BLACK: 950,
+//     ULTRA_BLACK: 950,
 // }
 
-const fontWeights = {
-    THIN: 100,
-    HAIR: 100,
-    EXTRA_LIGHT: 200,
-    ULTRA_LIGHT: 200,
-    LIGHT: 300,
-    NORMAL: 400,
-    REGULAR: 400,
-    BOOK: 400,
-    MEDIUM: 500,
-    SEMI_BOLD: 600,
-    DEMI_BOLD: 600,
-    BOLD: 700,
-    EXTRA_BOLD: 800,
-    ULTRA_BOLD: 800,
-    BLACK: 900,
-    HEAVY: 900,
-    EXTRA_BLACK: 950,
-    ULTRA_BLACK: 950,
+type TNone = 'none'
+type TTransparent = 'transparent'
+type TCurrentColor = 'currentcolor'
+
+enum TSystemColors {
+  Canvas = 'Canvas',
+  CanvasText = 'CanvasText',
+  LinkText = 'LinkText',
+  VisitedText = 'VisitedText',
+  ActiveText = 'ActiveText',
+  ButtonFace = 'ButtonFace',
+  ButtonText = 'ButtonText',
+  ButtonBorder = 'ButtonBorder',
+  Field = 'Field',
+  FieldText = 'FieldText',
+  Highlight = 'Highlight',
+  HighlightText = 'HighlightText',
+  SelectedItem = 'SelectedItem',
+  SelectedItemText = 'SelectedItemText',
+  Mark = 'Mark',
+  MarkText = 'MarkText',
+  GrayText = 'GrayText',
+  AccentColor = 'AccentColor',
+  AccentColorText = 'AccentColorText'
+}
+
+interface TProperty {
+  name: string
+  value: TNone
+  initial: TNone
+  percentages: null
+  computedValue: TNone | string
+}
+
+type TAbsoluteColorFunction = `rgb${string}` | `rgba${string}` | `hsl${string}` | `hsla${string}` | `hwb${string}` | `lab${string}` | `lch${string}` | `oklab${string}` | `oklch${string}` | `color${string}`
+type TAbsoluteColorBase = `#${string}` | TAbsoluteColorFunction | TTransparent // and TNamedColor
+
+type TColorToken = {
+  name: 'color'
+  initial: TSystemColors.CanvasText
+  value: TAbsoluteColorBase | TCurrentColor | TSystemColors
 }
 
 interface TToken {
   name: string
   value: string | {} | [] | number
-  // todo: cleanup this part
-  type: String | Number | Boolean | Object | Array<any> | null | "color" | "dimension" | "fontFamily" | "fontWeight" | "duration" | "cubicBezier",
+  computedValue?: string | {} | [] | number
+  // todo: clean this
+  type: "color" | "dimension" | "fontFamily" | "fontWeight" | "duration" | "cubicBezier",
+  isComposite?: boolean
   path: string
   description?: string
   extensions?: {}
-  computedValue?: string | {} | [] | number
   normalizedName?: string
+  css?: string
 }
 
 class Token {
@@ -53,50 +95,68 @@ class Token {
   constructor (t: TToken) {
     this.token = {
         ...t,
-        type: t.type || null,
     }
-    this.normalizeName()
   }
-
-  prettyPrint (): void {
-     console.log(JSON.stringify(this.token, null, 2))
-  }
-
   getToken (): TToken {
     return this.token
   }
+  private normalizeName(): void {
+    this.token.normalizedName = noCase(this.token.path, { delimiter: "-"})
+  }
 
-  normalizeName(): void {
-    this.token.normalizedName = noCase(this.token.name, { delimiter: "-"})
+  toCSS (): void {
+    this.normalizeName()
+    switch (this.token.type) {
+        case "color":
+          if (this.token.value === "transparent") {
+            this.token.css = `--${this.token.normalizedName}: rgb(0, 0, 0, 0);`
+            return
+          }
+          this.token.css = `--${this.token.normalizedName}: ${this.token.computedValue};`
+            break
+        default:
+          break
+    }
   }
 }
 
-interface ParserOptions {
-  colorFormat: 'rgb' | 'rgba' | 'hex' | 'hsl'
-}
-
 class Parser {
-  opt: ParserOptions
-  source: string | {}
+  opt: Options
+  source: {}
   tokens: TToken[]
-  _paths: string[]
+  private _paths: string[]
+  private _tmp: string[]
 
-  constructor (source: {}, opt: ParserOptions) {
+  constructor (source: {}, opt: Options) {
     this.source = source
     this.opt = opt
     this.tokens = this.readTokens(this.source)
     this._paths = []
+    this._tmp = []
   }
 
   readTokens (source: { [key: string]: any }): TToken[] {
-    if (this._paths === undefined) this._paths = []
 
+    if (this._paths === undefined) this._paths = []
+    if (this._tmp === undefined) this._tmp = []
     if (this.tokens === undefined) this.tokens = []
 
     for (const [k, v] of Object.entries(source)) {
       if (v.hasOwnProperty('$value') && v.hasOwnProperty('$type')) {
-        this._paths.push(k)
-        const tt = new Token({ value: v.$value, name: k, type: v.$type ?? typeof v.$value, path: this._paths.join('/') })
+        this._paths = [...this._tmp, k]
+
+        const t = {
+          value: v.$value,
+          name: k,
+          type: v.$type ?? typeof v.$value, path: this._paths.join('/'),
+          isComposite: typeof v.$value === "object"
+        }
+
+        if (typeof v["$value"] === "object") {
+          t.isComposite = true
+        }
+
+        const tt = new Token(t)
 
         if (v.hasOwnProperty('$description')) {
           tt.token.description = v.$description
@@ -107,11 +167,11 @@ class Parser {
         }
 
         this.computeValue(tt.getToken())
-
-        tt.prettyPrint()
+        tt.toCSS()
         this.tokens.push(tt.getToken())
+        this._paths = []
       } else {
-        this._paths.push(k)
+        this._tmp.push(k)
         this.readTokens(v)
       }
     }
@@ -121,8 +181,20 @@ class Parser {
   computeValue(t: TToken): void {
     switch (t.type) {
       case 'color':
+        if (t.value === "transparent") {
+          t.computedValue = tinycolor("#ffffff").setAlpha(0).toRgbString()
+          return
+        }
+
         const raw = tinycolor(t.value as string)
+
         if (!raw.isValid()) throw new Error(`TColor: Invalid color: ${t.value}`)
+
+        if (typeof t.value === "string" && !t.value.startsWith('#')) {
+          t.computedValue = raw.toString("name")
+          return
+        }
+
         if (raw.getFormat() !== 'hex') throw new Error('TColor: The value MUST be a string containing a hex triplet/quartet including the preceding # character')
 
         if (this.opt.colorFormat === 'rgb') {
@@ -141,7 +213,9 @@ class Parser {
         }
 
         if (this.opt.colorFormat === 'rgba') {
-          t.computedValue = tinycolor(t.value as string).toPercentageRgb()
+          const {r,g,b,a} = tinycolor(t.value as string).toPercentageRgb()
+          t.computedValue = `rgba(${r}, ${g}, ${b}, ${a})`
+          return
         }
         break
       case 'dimension':
@@ -174,7 +248,6 @@ class Parser {
         for (const v of t.value) {
             if (typeof v !== 'number') throw new Error('The value must be an array of 4 numbers')
         }
-
         const [P1x, P1y, P2x, P2y] = t.value as number[]
         if (P1x < 0 || P1x > 1) throw new Error("x coordinate of P1 must be between 0 and 1")
         if (P2x < 0 || P2x > 1) throw new Error("x coordinate of P2 must be between 0 and 1")
@@ -187,11 +260,19 @@ class Parser {
         throw new Error("not implemented yet")
     }
   }
+
+  wrapCSSInRoot (): string {
+    return `:root { ${this.tokens.map(t => t.css).join('\n')} }`
+  }
 }
 
-export async function parse (source: {} | string, opt: ParserOptions = { colorFormat: 'rgb' }): Promise<{ tokens: TToken[] }> {
+export async function parse (source: {} | string, opt: Options = { colorFormat: 'rgb', outputFormat: OutputFormat.CSS }): Promise<{ tokens: TToken[], css: string }> {
   if (source === undefined) {
-    throw new Error('source is undefined')
+    throw new Error('Source is undefined')
+  }
+
+  if (typeof source === 'string' && source.startsWith('{')) {
+    source = JSON.parse(source)
   }
 
   if (typeof source === 'string' && (source.endsWith('.tokens') || source.endsWith('.tokens.json'))) {
@@ -199,5 +280,9 @@ export async function parse (source: {} | string, opt: ParserOptions = { colorFo
   }
 
   const p = new Parser(source, opt)
-  return { tokens: p.tokens }
+
+  return {
+    tokens: p.tokens,
+    css: p.wrapCSSInRoot()
+  }
 }
