@@ -4,10 +4,10 @@
   "main": "./dist/parser.js",
   "scripts": {
     "test": "tap test.ts --no-coverage --reporter specy --ts",
-    "build": "esbuild parser.ts --outdir=dist --format=cjs --platform=node --target=es2016",
+    "build": "esbuild lib/parser.ts --outdir=dist --format=cjs --platform=node --target=es2016",
     "fix": "standard test.ts --fix && ts-standard ./parser.ts --fix"
   },
-  "keywords": [],
+  "keywords": ["design-system", "token"],
   "author": "hawyar",
   "license": "MIT",
   "devDependencies": {

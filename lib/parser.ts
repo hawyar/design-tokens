@@ -12,27 +12,6 @@ interface Options {
   outputFormat: OutputFormat
 }
 
-// const fontWeights = {
-//     THIN: 100,
-//     HAIR: 100,
-//     EXTRA_LIGHT: 200,
-//     ULTRA_LIGHT: 200,
-//     LIGHT: 300,
-//     NORMAL: 400,
-//     REGULAR: 400,
-//     BOOK: 400,
-//     MEDIUM: 500,
-//     SEMI_BOLD: 600,
-//     DEMI_BOLD: 600,
-//     BOLD: 700,
-//     EXTRA_BOLD: 800,
-//     ULTRA_BOLD: 800,
-//     BLACK: 900,
-//     HEAVY: 900,
-//     EXTRA_BLACK: 950,
-//     ULTRA_BLACK: 950,
-// }
-
 type TNone = 'none'
 type TTransparent = 'transparent'
 type TCurrentColor = 'currentcolor'
@@ -260,7 +239,6 @@ class Parser {
         throw new Error("not implemented yet")
     }
   }
-
   wrapCSSInRoot (): string {
     return `:root { ${this.tokens.map(t => t.css).join('\n')} }`
   }

@@ -1,9 +1,7 @@
 "use strict";
 var __create = Object.create;
 var __defProp = Object.defineProperty;
-var __defProps = Object.defineProperties;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropDescs = Object.getOwnPropertyDescriptors;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getOwnPropSymbols = Object.getOwnPropertySymbols;
 var __getProtoOf = Object.getPrototypeOf;
@@ -21,7 +19,6 @@ var __spreadValues = (a, b) => {
     }
   return a;
 };
-var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
@@ -58,47 +55,63 @@ var __async = (__this, __arguments, generator) => {
 };
 var parser_exports = {};
 __export(parser_exports, {
+  OutputFormat: () => OutputFormat,
   parse: () => parse
 });
 module.exports = __toCommonJS(parser_exports);
 var import_promises = require("fs/promises");
 var import_tinycolor2 = __toESM(require("tinycolor2"));
 var import_no_case = require("no-case");
-const fontWeights = {
-  THIN: 100,
-  HAIR: 100,
-  EXTRA_LIGHT: 200,
-  ULTRA_LIGHT: 200,
-  LIGHT: 300,
-  NORMAL: 400,
-  REGULAR: 400,
-  BOOK: 400,
-  MEDIUM: 500,
-  SEMI_BOLD: 600,
-  DEMI_BOLD: 600,
-  BOLD: 700,
-  EXTRA_BOLD: 800,
-  ULTRA_BOLD: 800,
-  BLACK: 900,
-  HEAVY: 900,
-  EXTRA_BLACK: 950,
-  ULTRA_BLACK: 950
-};
+var OutputFormat = /* @__PURE__ */ ((OutputFormat2) => {
+  OutputFormat2[OutputFormat2["CSS"] = 0] = "CSS";
+  OutputFormat2[OutputFormat2["SCSS"] = 1] = "SCSS";
+  return OutputFormat2;
+})(OutputFormat || {});
+var TSystemColors = /* @__PURE__ */ ((TSystemColors2) => {
+  TSystemColors2["Canvas"] = "Canvas";
+  TSystemColors2["CanvasText"] = "CanvasText";
+  TSystemColors2["LinkText"] = "LinkText";
+  TSystemColors2["VisitedText"] = "VisitedText";
+  TSystemColors2["ActiveText"] = "ActiveText";
+  TSystemColors2["ButtonFace"] = "ButtonFace";
+  TSystemColors2["ButtonText"] = "ButtonText";
+  TSystemColors2["ButtonBorder"] = "ButtonBorder";
+  TSystemColors2["Field"] = "Field";
+  TSystemColors2["FieldText"] = "FieldText";
+  TSystemColors2["Highlight"] = "Highlight";
+  TSystemColors2["HighlightText"] = "HighlightText";
+  TSystemColors2["SelectedItem"] = "SelectedItem";
+  TSystemColors2["SelectedItemText"] = "SelectedItemText";
+  TSystemColors2["Mark"] = "Mark";
+  TSystemColors2["MarkText"] = "MarkText";
+  TSystemColors2["GrayText"] = "GrayText";
+  TSystemColors2["AccentColor"] = "AccentColor";
+  TSystemColors2["AccentColorText"] = "AccentColorText";
+  return TSystemColors2;
+})(TSystemColors || {});
 class Token {
   constructor(t) {
-    this.token = __spreadProps(__spreadValues({}, t), {
-      type: t.type || null
-    });
-    this.normalizeName();
-  }
-  prettyPrint() {
-    console.log(JSON.stringify(this.token, null, 2));
+    this.token = __spreadValues({}, t);
   }
   getToken() {
     return this.token;
   }
   normalizeName() {
-    this.token.normalizedName = (0, import_no_case.noCase)(this.token.name, { delimiter: "-" });
+    this.token.normalizedName = (0, import_no_case.noCase)(this.token.path, { delimiter: "-" });
+  }
+  toCSS() {
+    this.normalizeName();
+    switch (this.token.type) {
+      case "color":
+        if (this.token.value === "transparent") {
+          this.token.css = `--${this.token.normalizedName}: rgb(0, 0, 0, 0);`;
+          return;
+        }
+        this.token.css = `--${this.token.normalizedName}: ${this.token.computedValue};`;
+        break;
+      default:
+        break;
+    }
   }
 }
 class Parser {
@@ -107,17 +120,30 @@ class Parser {
     this.opt = opt;
     this.tokens = this.readTokens(this.source);
     this._paths = [];
+    this._tmp = [];
   }
   readTokens(source) {
     var _a;
     if (this._paths === void 0)
       this._paths = [];
+    if (this._tmp === void 0)
+      this._tmp = [];
     if (this.tokens === void 0)
       this.tokens = [];
     for (const [k, v] of Object.entries(source)) {
       if (v.hasOwnProperty("$value") && v.hasOwnProperty("$type")) {
-        this._paths.push(k);
-        const tt = new Token({ value: v.$value, name: k, type: (_a = v.$type) != null ? _a : typeof v.$value, path: this._paths.join("/") });
+        this._paths = [...this._tmp, k];
+        const t = {
+          value: v.$value,
+          name: k,
+          type: (_a = v.$type) != null ? _a : typeof v.$value,
+          path: this._paths.join("/"),
+          isComposite: typeof v.$value === "object"
+        };
+        if (typeof v["$value"] === "object") {
+          t.isComposite = true;
+        }
+        const tt = new Token(t);
         if (v.hasOwnProperty("$description")) {
           tt.token.description = v.$description;
         }
@@ -125,10 +151,11 @@ class Parser {
           tt.token.extensions = v.$extensions;
         }
         this.computeValue(tt.getToken());
-        tt.prettyPrint();
+        tt.toCSS();
         this.tokens.push(tt.getToken());
+        this._paths = [];
       } else {
-        this._paths.push(k);
+        this._tmp.push(k);
         this.readTokens(v);
       }
     }
@@ -137,9 +164,17 @@ class Parser {
   computeValue(t) {
     switch (t.type) {
       case "color":
+        if (t.value === "transparent") {
+          t.computedValue = (0, import_tinycolor2.default)("#ffffff").setAlpha(0).toRgbString();
+          return;
+        }
         const raw = (0, import_tinycolor2.default)(t.value);
         if (!raw.isValid())
           throw new Error(`TColor: Invalid color: ${t.value}`);
+        if (typeof t.value === "string" && !t.value.startsWith("#")) {
+          t.computedValue = raw.toString("name");
+          return;
+        }
         if (raw.getFormat() !== "hex")
           throw new Error("TColor: The value MUST be a string containing a hex triplet/quartet including the preceding # character");
         if (this.opt.colorFormat === "rgb") {
@@ -155,7 +190,9 @@ class Parser {
           return;
         }
         if (this.opt.colorFormat === "rgba") {
-          t.computedValue = (0, import_tinycolor2.default)(t.value).toPercentageRgb();
+          const { r, g, b, a } = (0, import_tinycolor2.default)(t.value).toPercentageRgb();
+          t.computedValue = `rgba(${r}, ${g}, ${b}, ${a})`;
+          return;
         }
         break;
       case "dimension":
@@ -204,20 +241,30 @@ class Parser {
         throw new Error("not implemented yet");
     }
   }
+  wrapCSSInRoot() {
+    return `:root { ${this.tokens.map((t) => t.css).join("\n")} }`;
+  }
 }
 function parse(_0) {
-  return __async(this, arguments, function* (source, opt = { colorFormat: "rgb" }) {
+  return __async(this, arguments, function* (source, opt = { colorFormat: "rgb", outputFormat: 0 /* CSS */ }) {
     if (source === void 0) {
-      throw new Error("source is undefined");
+      throw new Error("Source is undefined");
+    }
+    if (typeof source === "string" && source.startsWith("{")) {
+      source = JSON.parse(source);
     }
     if (typeof source === "string" && (source.endsWith(".tokens") || source.endsWith(".tokens.json"))) {
       source = yield (0, import_promises.readFile)(source, { encoding: "utf8" });
     }
     const p = new Parser(source, opt);
-    return { tokens: p.tokens };
+    return {
+      tokens: p.tokens,
+      css: p.wrapCSSInRoot()
+    };
   });
 }
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  OutputFormat,
   parse
 });
